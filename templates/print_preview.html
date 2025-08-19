@@ -1,0 +1,73 @@
+{% extends "generator/base_dashboard.html" %}
+{% load static %}
+{% block title %}T-shirt Print Preview{% endblock %}
+
+{% block extra_css %}
+<style>
+    .preview-img { max-width: 100%; border: 1px solid #999; background: #fff; margin: 1em auto; display: block; }
+    @media print {
+        body, html { margin: 0 !important; padding: 0 !important; box-shadow: none !important; background: #fff !important;}
+        .container, .preview-img { margin: 0 !important; padding: 0 !important; outline: none !important; box-shadow: none !important;}
+        img.preview-img { display:block!important; margin:0 auto!important; max-width:100vw!important; max-height:100vh!important;}
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">T-shirt Print Job</h2>
+<form id="qrForm" class="mb-4">
+    <label for="qrdata" class="form-label">Scan or Paste QR code content here</label>
+    <textarea id="qrdata" class="form-control mb-2" rows="7" placeholder='{"order_no": "ORDER-000001", ...}' required></textarea>
+    <button type="button" class="btn btn-primary w-100" onclick="submitQR()">Preview and Print</button>
+</form>
+<div id="previewArea" style="text-align:center;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printPreviewImg() {
+    const img = document.querySelector('.preview-img');
+    if (!img) {
+        alert("No preview image!");
+        return;
+    }
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(
+        '<html>' +
+        '<head>' +
+        '<title>Print Preview</title>' +
+        '<style>body{margin:0;background:#fff;text-align:center;}img{max-width:95vw;max-height:95vh;}</style>' +
+        '</head>' +
+        '<body>' +
+        '<img src="' + img.src + '" alt="T-shirt Print Preview">' +
+        '<script>window.onload = function() { window.print(); }<\/script>' +
+        '</body></html>'
+    );
+    printWindow.document.close();
+}
+
+function submitQR() {
+    let qrdata = document.getElementById('qrdata').value.trim();
+    if (!qrdata) {
+        alert("Please paste QR code data!");
+        return;
+    }
+    fetch("{% url 'print_preview' %}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({qr_json: qrdata})
+    }).then(response => response.json())
+      .then(data => {
+        let previewArea = document.getElementById('previewArea');
+        if (data.error){
+            previewArea.innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+            return;
+        }
+        previewArea.innerHTML =
+            '<div><b>Preview:</b></div>' +
+            '<img class="preview-img" src="data:image/png;base64,' + data.preview_base64 + '" alt="T-shirt print preview" /><br>' +
+            '<button type="button" onclick="printPreviewImg()" class="btn btn-success mt-3">Print</button>';
+    });
+}
+</script>
+{% endblock %}

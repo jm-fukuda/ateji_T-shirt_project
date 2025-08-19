@@ -1,0 +1,100 @@
+{% extends "generator/base_dashboard.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tシャツ設定（店舗用）{% endblock %}
+
+{% block extra_css %}
+<style>
+    .size-row input { max-width: 120px; display: inline-block; }
+    .size-row .unit {margin-left: .5em;}
+    .size-area-label {width: 65px;}
+    .chest-area-label {width: 70px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Tシャツ設定（店舗管理）</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label class="form-label">作成可能サイズ<br>
+            <span class="small text-muted">サイズ・胸囲をひとつずつ分けて入力してください</span>
+        </label>
+        <div id="size-fields">
+            <div class="row">
+                <div class="col size-area-label fw-bold">サイズ名</div>
+                <div class="col chest-area-label fw-bold">胸囲(cm)</div>
+                <div class="col"></div>
+            </div>
+            {% for size in setting.size_choices %}
+                <div class="row mb-2 size-row">
+                    <div class="col size-area-label">
+                        <input type="text" class="form-control" name="size_name" value="{{ size.0 }}" required placeholder="例: XS">
+                    </div>
+                    <div class="col chest-area-label">
+                        <input type="number" class="form-control" name="chest" value="{{ size.1 }}" required placeholder="例: 78">
+                    </div>
+                    <div class="col-auto d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.row').remove();">削除</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addSizeField();">＋サイズを追加</button>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">ボディーカラー<br>
+            <span class="small text-muted">カンマ区切りで入力（例: 白,黒,赤）</span>
+        </label>
+        <input class="form-control" name="body_colors" value="{{ setting.body_color_choices|join:',' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">プリントカラー<br>
+            <span class="small text-muted">カンマ区切りで入力（例: 黒,赤,青）</span>
+        </label>
+        <input class="form-control" name="text_colors" value="{{ setting.text_color_choices|join:',' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">販売価格（円・税込）</label>
+        <input class="form-control" name="price" type="number" min="0" value="{{ setting.price }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">JANコード（商品コード13桁）</label>
+        <input class="form-control" name="jan_code_const" maxlength="13" value="{{ setting.jan_code_const }}">
+    </div>
+    <button type="submit" class="btn btn-primary">設定を保存する</button>
+</form>
+<hr>
+<h5>現在の設定</h5>
+<div>
+    <b>サイズ:</b>
+    {% for sz in setting.size_choices %}
+        {{ sz.0 }} (胸囲{{ sz.1 }}cm){% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+<div><b>ボディーカラー:</b> {{ setting.body_color_choices|join:', ' }}</div>
+<div><b>プリントカラー:</b> {{ setting.text_color_choices|join:', ' }}</div>
+<div><b>販売価格:</b> ¥{{ setting.price }}(税込)</div>
+<div><b>JANコード（商品コード13桁）:</b> {{ setting.jan_code_const }}</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addSizeField() {
+    const field = document.createElement('div');
+    field.className = 'row mb-2 size-row';
+    field.innerHTML =
+        '<div class="col size-area-label">' +
+            '<input type="text" class="form-control" name="size_name" required placeholder="例: XS">' +
+        '</div>' +
+        '<div class="col chest-area-label">' +
+            '<input type="number" class="form-control" name="chest" required placeholder="例: 78">' +
+        '</div>' +
+        '<div class="col-auto d-flex align-items-center">' +
+            '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.row\').remove();">削除</button>' +
+        '</div>';
+    document.getElementById('size-fields').appendChild(field);
+}
+</script>
+{% endblock %}

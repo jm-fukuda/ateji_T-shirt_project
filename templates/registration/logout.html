@@ -1,0 +1,19 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <title>{% trans "Logged out" %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="text-center">
+        <h2 class="mb-3">{% trans "Logged out" %}</h2>
+        <p>{% trans "You have been successfully logged out." %}</p>
+        <a href="{% url 'login' %}" class="btn btn-primary mt-3">{% trans "Login again" %}</a>
+        <a href="{% url 'home' %}" class="btn btn-link mt-3">{% trans "Return to Top" %}</a>
+    </div>
+</div>
+</body>
+</html>
