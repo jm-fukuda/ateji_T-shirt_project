@@ -1,6 +1,16 @@
 # generator/models.py
 
 from django.db import models
+import uuid
+
+class PronounceName(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    reading = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
 
 class KanjiAteji(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -21,6 +31,7 @@ class KanjiMeaning(models.Model):
 
 
 class Order(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kanji = models.CharField(max_length=32)
     reading = models.CharField(max_length=64, blank=True)
     meaning = models.TextField(blank=True)
@@ -48,7 +59,7 @@ class TshirtSetting(models.Model):
 
 
 class PrintJob(models.Model):
-    order_no = models.CharField(max_length=32, unique=True)
+    order_no = models.CharField(max_length=64, unique=True)
     kanji = models.CharField(max_length=32)
     reading = models.CharField(max_length=64)
     meaning = models.TextField()

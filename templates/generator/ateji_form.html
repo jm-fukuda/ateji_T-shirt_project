@@ -16,8 +16,8 @@
     <style>
         body { padding-top: 86px; }
         .logo-title-box { display: flex; align-items: center; }
-        .shop-logo { max-width:50px; margin-right:.7em; }
-        .navbar-brand-title { font-weight: bold; font-size: 1.5rem; color: #269; }
+        .shop-logo { max-width:100px; margin-right:.7em; }
+        .navbar-brand-title { font-weight: bold; font-size: 3rem; color: #269; }
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
     <div class="container-fluid">
         <a class="navbar-brand logo-title-box" href="{% url 'ateji_form' %}">
             <img src="{% static 'images/shop_logo.png' %}" alt="{% trans 'Shop Logo' %}" class="shop-logo">
-            <span class="navbar-brand-title">{% trans "Kanji Ateji Generator" %}</span>
+            <span class="navbar-brand-title display-1">{% trans "Kanji Ateji Generator" %}</span>
         </a>
         <div class="ms-auto d-flex align-items-center">
             {% if candidates %}
@@ -47,37 +47,37 @@
         <form method="post" autocomplete="off">
             {% csrf_token %}
             <div class="mb-3">
-                <label class="form-label">{% trans "Name" %}</label>
-                <input class="form-control" name="name" type="text" value="{{ name }}" required>
+                <label class="form-label fs-2">{% trans "Name" %}</label>
+                <input class="form-control fs-3" name="name" type="text" value="{{ name }}" required>
             </div>
             <div class="mb-3">
-                <label class="form-label">{% trans "Number of Candidates" %}</label>
-                <select name="num_candidates" class="form-select">
+                <label class="form-label fs-2">{% trans "Number of Candidates" %}</label>
+                <select name="num_candidates" class="form-select fs-3">
                     <option value="3" {% if num_candidates == 3 or num_candidates == "3" %}selected{% endif %}>{% trans "3 (Default)" %}</option>
                     <option value="1" {% if num_candidates == 1 or num_candidates == "1" %}selected{% endif %}>{% trans "1" %}</option>
                     <option value="5" {% if num_candidates == 5 or num_candidates == "5" %}selected{% endif %}>{% trans "5" %}</option>
                 </select>
             </div>
             <div class="mb-3">
-                <label class="form-label">{% trans "Display Mode" %}</label>
+                <label class="form-label fs-2">{% trans "Display Mode" %}</label>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="mode" id="yoko" value="yoko" {% if mode == "yoko" %}checked{% endif %}>
-                    <label class="form-check-label" for="yoko">{% trans "Horizontal" %}</label>
+                    <input class="btn-check" type="radio" name="mode" id="yoko" value="yoko" {% if mode == "yoko" %}checked{% endif %}>
+                    <label class="btn btn-outline-secondary fs-3" for="yoko">{% trans "Horizontal" %}</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="mode" id="tate" value="tate" {% if mode == "tate" %}checked{% endif %}>
-                    <label class="form-check-label" for="tate">{% trans "Vertical" %}</label>
+                    <input class="btn-check" type="radio" name="mode" id="tate" value="tate" {% if mode == "tate" %}checked{% endif %}>
+                    <label class="btn btn-outline-secondary fs-3" for="tate">{% trans "Vertical" %}</label>
                 </div>
             </div>
             <div class="mb-3">
-                <label class="form-label">{% trans "Font" %}</label>
-                <select name="font" class="form-select">
+                <label class="form-label fs-2">{% trans "Font" %}</label>
+                <select name="font" class="form-select fs-3">
                     {% for code, label in FONT_DISPLAY_NAMES.items %}
                         <option value="{{ code }}" {% if font == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <button class="btn btn-primary w-100" type="submit">{% trans "Convert" %}</button>
+            <button class="btn btn-primary w-100 fs-3" type="submit">{% trans "Convert" %}</button>
         </form>
     </div>
 </div>
@@ -88,64 +88,63 @@
     <form method="post" class="my-4" autocomplete="off">
         {% csrf_token %}
         <div class="mb-3">
-            <label class="form-label">{% trans "Name" %} {% if error %}<div class="alert alert-danger text-center">{{ error }}</div>{% endif %}</label>
-            <input class="form-control" name="name" type="text" value="{{ name }}" required autofocus>
+            <label class="form-label fs-1">{% trans "Name" %} {% if error %}<div class="alert alert-danger text-center fs-2">{{ error }}</div>{% endif %}</label>
+            <input class="form-control fs-2" name="name" type="text" value="{{ name }}" required autofocus>
         </div>
         <div class="mb-3">
-            <label class="form-label">{% trans "Number of Candidates" %}</label>
-            <select name="num_candidates" class="form-select">
+            <label class="form-label fs-1">{% trans "Number of Candidates" %}</label>
+            <select name="num_candidates" class="form-select fs-2">
                 <option value="3" {% if num_candidates == 3 %}selected{% endif %}>{% trans "3 (Default)" %}</option>
                 <option value="1" {% if num_candidates == 1 %}selected{% endif %}>{% trans "1" %}</option>
                 <option value="5" {% if num_candidates == 5 %}selected{% endif %}>{% trans "5" %}</option>
             </select>
         </div>
         <div class="mb-3">
-            <label class="form-label">{% trans "Display Mode" %}</label>
+            <label class="form-label fs-1">{% trans "Display Mode" %}</label>
             <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="mode" id="yoko" value="yoko" {% if mode == "yoko" %}checked{% endif %}>
-                <label class="form-check-label" for="yoko">{% trans "Horizontal" %}</label>
+                <input class="btn-check" type="radio" name="mode" id="yoko" value="yoko" {% if mode == "yoko" %}checked{% endif %}>
+                <label class="btn btn-outline-secondary fs-2" for="yoko">{% trans "Horizontal" %}</label>
             </div>
             <div class="form-check form-check-inline">
-                <input class="form-check-input" type="radio" name="mode" id="tate" value="tate" {% if mode == "tate" %}checked{% endif %}>
-                <label class="form-check-label" for="tate">{% trans "Vertical" %}</label>
+                <input class="btn-check" type="radio" name="mode" id="tate" value="tate" {% if mode == "tate" %}checked{% endif %}>
+                <label class="btn btn-outline-secondary fs-2" for="tate">{% trans "Vertical" %}</label>
             </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">{% trans "Font" %}</label>
-            <select name="font" class="form-select">
+            <label class="form-label fs-1">{% trans "Font" %}</label>
+            <select name="font" class="form-select fs-2">
                 {% for code, label in FONT_DISPLAY_NAMES.items %}
                     <option value="{{ code }}" {% if font == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>
-        <button class="btn btn-primary w-100" type="submit">{% trans "Convert" %}</button>
+        <button class="btn btn-primary w-100 fs-1" type="submit">{% trans "Convert" %}</button>
     </form>
     {% endif %}
 
     {% if candidates %}
     <div class="row justify-content-center g-3">
         {% for item in candidates %}
-            <div class="col-12 col-sm-6 col-md-4 d-flex align-items-stretch">
+            <div class="col-12 d-flex align-items-stretch">   {# .col-12のみで常に1列 #}
                 <form action="{% url 'confirm_tshirt' %}" method="post" class="w-100 card-post-form">
                     {% csrf_token %}
                     <input type="hidden" name="kanji" value="{{ item.kanji }}">
                     <input type="hidden" name="reading" value="{{ item.reading }}">
-                    <!--<input type="hidden" name="meaning" value="{{ item.meaning }}">!-->
                     <input type="hidden" name="parts" value="{{ item.parts }}">
                     <input type="hidden" name="mode" value="{{ mode }}">
                     <input type="hidden" name="font" value="{{ font }}">
                     <input type="hidden" name="name" value="{{ name }}">
                     <input type="hidden" name="num_candidates" value="{{ num_candidates }}">
                     <button type="submit" class="card h-100 w-100 shadow-sm mb-2 p-0 border-0 text-start" style="background:none; cursor:pointer;">
-                        <div class="card-body text-center d-flex flex-column justify-content-between">
+                        <div class="card-body text-center d-flex flex-column justify-content-between py-3">
                             <img class="card-img-top mb-2 mx-auto"
-                                style="max-width:90%; max-height:180px; width:auto; height:auto;"
+                                style="max-width:92vw; max-height:500px; width:auto; height:auto;"
                                 src="{% url 'kanji_image' %}?kanji={{ item.kanji|urlencode }}&mode={{ mode }}&font={{ font }}"
                                 alt="{{ item.kanji }} image">
-                            <div class="mb-2">
-                                <span class="badge bg-secondary">{{ item.reading }}</span>
+                            <div class="text-center">
+                                <span class="badge bg-secondary fs-1">{{ item.reading }}</span>
                             </div>
-                            <div class="text-dark small">
+                            <div class="text-dark fs-1">
                                 {% if item.parts %}
                                     {% meaning_from_parts item.parts as meaning_str %}
                                     {{ meaning_str }}

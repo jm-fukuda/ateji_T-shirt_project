@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
-from .models import KanjiAteji, KanjiMeaning, Order, TshirtSetting, BadWord
+from .models import PronounceName, KanjiAteji, KanjiMeaning, Order, TshirtSetting, BadWord
 from PIL import Image, ImageFont, ImageDraw
 from django.http import HttpResponse
 from urllib.parse import unquote
@@ -12,6 +12,7 @@ import re
 import qrcode
 import base64
 import barcode
+import math
 from barcode.writer import ImageWriter
 from django.http import JsonResponse
 from .models import PrintJob
@@ -21,6 +22,7 @@ from django.contrib.auth.decorators import login_required
 from kanji_name.settings import OPENAI_API_KEY
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
+from django.conf import settings
 
 
 
@@ -140,7 +142,7 @@ def is_ng_word_ai_gpt(name):
             return False, ""
     except Exception as e:
         return False, ""
-    
+
 def smart_ng_check(name):
     if BadWord.objects.filter(word=name.lower()).exists():
         return True, "local"
@@ -166,9 +168,11 @@ def validate_name(name):
     if not (min_len <= len(name) <= max_len):
         return True, _("Name must be between %(min)d and %(max)d characters for your language.") % {'min': min_len, 'max': max_len}
 
-    # 3. 文字種チェック
-    pattern = LANG_CHAR_RULES.get(lang, LANG_CHAR_RULES['en'])
-    if not pattern.fullmatch(name):
+    # 3. 文字種チェック（選択された言語用パターン or 英語用パターンどちらかでOK）
+    pattern_main = LANG_CHAR_RULES.get(lang, LANG_CHAR_RULES['en'])
+    pattern_en = LANG_CHAR_RULES['en']
+    # langがenの場合は1回、en以外なら両方チェック
+    if not (pattern_main.fullmatch(name) or (lang != 'en' and pattern_en.fullmatch(name))):
         return True, _("Please use only allowed characters for your language (no symbols or inappropriate characters).")
 
     # 4. その他禁止（任意の追加ルール可）
@@ -183,9 +187,54 @@ def home(request):
     response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
 
+import openai
+
+LANG2LABEL = {
+    'en': 'English',
+    'ja': 'Japanese',
+    'fr': 'French',
+    'de': 'German',
+    'zh-hans': 'Simplified Chinese',
+    'zh-hant': 'Traditional Chinese',
+    'es': 'Spanish',
+    'it': 'Italian',
+    'ko': 'Korean',
+    'ru': 'Russian',
+    'nl': 'Dutch',
+    'sv': 'Swedish',
+    'th': 'Thai',
+}
+
+def get_kana_from_name_by_gpt(name, lang):
+    lang_label = LANG2LABEL.get(lang, lang)
+    prompt = (
+        f"Convert the name '{name}' to Japanese Hiragana, focusing on how a native {lang_label} speaker would pronounce it. "
+        "Respond ONLY with the Japanese Hiragana (do not add any extra text)."
+    )
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a Japanese linguist and name conversion expert."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=30,
+        temperature=0
+    )
+    kana = response['choices'][0]['message']['content']
+    kana = kana.strip().replace(' ', '')
+    return kana
 
 def get_kanji_candidates(name, num_candidates):
-    db_entry = KanjiAteji.objects.filter(name__iexact=name).first()
+    lang = get_language().replace('_', '-').lower()
+    field = f'reading_{lang.replace("-","_")}'
+    pron, created = PronounceName.objects.get_or_create(name__iexact=name)
+    reading_kana = getattr(pron, field, None)
+    if not reading_kana:
+        # ChatGPTで生成
+        reading_kana = get_kana_from_name_by_gpt(name, lang)
+        setattr(pron, field, reading_kana)
+        pron.save(update_fields=[field])
+    db_entry = KanjiAteji.objects.filter(name__iexact=reading_kana).first()
     if db_entry:
         candidates = json.loads(db_entry.kanji_candidates_json)
         cached = True
@@ -262,15 +311,15 @@ def ask_gpt_meaning(char, lang):
         "en":"English",
         "ja":"Japanese",
         "fr":"French",
-        "de":"German", 
+        "de":"German",
         "zh-hans":"Simplified Chinese",
-        "zh-hant":"Traditional Chinese", 
+        "zh-hant":"Traditional Chinese",
         "es":"Spanish", "it":"Italian",
-        "ru":"Russian", "sv":"Swedish", 
-        "th":"Thai", 
-        "nl":"Dutch", 
+        "ru":"Russian", "sv":"Swedish",
+        "th":"Thai",
+        "nl":"Dutch",
         "ko":"Korean",
-    }  
+    }
     system = "You are a professional Japanese kanji dictionary. Answer by giving only the short meaning for this single kanji in the requested language."
     prompt = f"What is a short, simple {lang_labels.get(lang, lang)} explanation of the Japanese character '{char}'? Respond only with the translation or meaning."
     response = openai.ChatCompletion.create(
@@ -435,18 +484,8 @@ def kanji_image(request):
     font_path = os.path.join('static', 'fonts', font_file)
 
     is_tate = mode == 'tate'
-    if is_tate:
-        tate_chars = []
-        for ch in kanji:
-            if ch in ['ー', 'ｰ', '-']:
-                tate_chars.append('｜')
-            else:
-                tate_chars.append(ch)
-        chars = tate_chars
-        kanji_for_size = ''.join(chars)
-    else:
-        chars = list(kanji)
-        kanji_for_size = kanji
+    chars = list(kanji)
+    kanji_for_size = kanji
 
     font_size = get_font_size_for_text(kanji_for_size, font_path, width-190, height-190, 24, 120, vertical=is_tate)
 
@@ -466,44 +505,54 @@ def kanji_image(request):
         draw.text((x, y), kanji, font=font, fill="black")
     else:
         # 縦書き
-        ws, hs, small_indexes = [], [], []
+        ws, hs, bboxes, small_indexes = [], [], [], []
         for ch in chars:
-            if ch in SMALL_KANA:
-                try:
-                    bbox = draw.textbbox((0,0), ch, font=font)
-                    ws.append(bbox[2] - bbox[0])
-                    hs.append(bbox[3] - bbox[1])
-                except Exception:
-                    w_, h_ = draw.textsize(ch, font=font)
-                    ws.append(w_)
-                    hs.append(h_)
-                small_indexes.append(True)
-            else:
-                try:
-                    bbox = draw.textbbox((0,0), ch, font=font)
-                    ws.append(bbox[2] - bbox[0])
-                    hs.append(bbox[3] - bbox[1])
-                except Exception:
-                    w_, h_ = draw.textsize(ch, font=font)
-                    ws.append(w_)
-                    hs.append(h_)
+            try:
+                bbox = draw.textbbox((0,0), ch, font=font)
+                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            except Exception:
+                w, h = draw.textsize(ch, font=font)
+                bbox = (0, 0, w, h)
+            # 長音符は事前に幅・高さを工夫（回転するため）
+            if ch in ['ー', 'ｰ', '-']:
+                ws.append(h)
+                hs.append(w)
                 small_indexes.append(False)
+            else:
+                ws.append(w)
+                hs.append(h)
+                small_indexes.append(ch in SMALL_KANA)
+            bboxes.append(bbox)
 
         max_w = max(ws)
-        total_h = sum(hs)
+        total_h = sum(hs) + 10*(len(chars)-1)
         x = (width - max_w) // 2
         y = (height - total_h) // 3
 
         cursor_y = y
         for i, ch in enumerate(chars):
-            if small_indexes[i]:
+            w, h = ws[i], hs[i]
+            bbox = bboxes[i]
+            if ch in ['ー', 'ｰ', '-']:
+                # 長音符は90度回転描画で中央
+                base_w, base_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                char_img = Image.new('RGBA', (base_w, base_h), (0, 0, 0, 0))
+                char_draw = ImageDraw.Draw(char_img)
+                char_draw.text((-bbox[0], -bbox[1]), ch, font=font, fill="black")
+                rotated_char_img = char_img.rotate(90, expand=True)
+                rw, rh = rotated_char_img.size
+                adjust_ratio = 1.95  # ここを1.5等で微調整可能
+                rx = int((width - rw) / adjust_ratio)
+                ry = cursor_y + int(hs[i] * 0.4)
+                bg.paste(rotated_char_img, (rx, ry), rotated_char_img)
+            elif small_indexes[i]:
                 # 小書き文字: 右下寄せ
                 sx = x + int(ws[i] * 0.2)
                 sy = cursor_y - int(hs[i] * 0.4)
                 draw.text((sx, sy), ch, font=font, fill="black")
             else:
                 draw.text((x, cursor_y), ch, font=font, fill="black")
-            cursor_y += hs[i] + 10
+            cursor_y += h + 10
 
     response = HttpResponse(content_type="image/png")
     bg.save(response, "PNG")
@@ -626,7 +675,7 @@ def tshirt_order(request):
             jan_code=DEFAULT_JAN_CODE
         )
 
-        order_url = f"ORDER-{order.id:06d}"
+        order_url = f"{order.id}"
 
         # バーコード生成
         CODE = barcode.get('ean13', DEFAULT_JAN_CODE, writer=ImageWriter())
@@ -646,17 +695,8 @@ def tshirt_order(request):
         # QRコード内容にもmeaning_strを格納
         qr_content = {
             "order_no": order_url,
-            "kanji": kanji,
-            "reading": reading,
-            "meaning": meaning_str,   # ←ここも
-            "mode": mode,
-            "font": font,
-            "size": size,
-            "body_color": body_color,
-            "text_color": text_color
         }
         qr_json = json.dumps(qr_content, ensure_ascii=False)
-        import qrcode
         buf = BytesIO()
         qrcode.make(qr_json).save(buf, format='PNG')
         img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
@@ -676,7 +716,7 @@ def tshirt_order(request):
         return response
     else:
         return redirect('ateji_form')
-        
+
 
 @require_http_methods(["GET", "POST"])
 @login_required
@@ -765,14 +805,11 @@ SMALL_KANA = (
 def get_best_font_size_tate(
     text, font_path, img_w, img_h, margin=120, min_size=50, max_size=1000, extra_ratio=0.2
 ):
-    import math
     left = min_size
     right = max_size
     best = min_size
     temp_img = Image.new("RGB", (img_w, img_h))
     draw = ImageDraw.Draw(temp_img)
-    # 伸ばし棒を"｜"に置換
-    text = "".join("｜" if ch in ["ー", "ｰ", "-"] else ch for ch in text)
     while left <= right:
         mid = (left + right) // 2
         font = ImageFont.truetype(font_path, mid)
@@ -783,8 +820,12 @@ def get_best_font_size_tate(
                 bbox = draw.textbbox((0, 0), ch, font=font)
             except AttributeError:
                 bbox = (0, 0) + draw.textsize(ch, font=font)
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
+            if ch in ['ー', 'ｰ', '-']:
+                h = bbox[2] - bbox[0]
+                w = bbox[3] - bbox[1]
+            else:
+                w = bbox[2] - bbox[0]
+                h = bbox[3] - bbox[1]
             heights.append(h)
             if w > max_width:
                 max_width = w
@@ -796,6 +837,8 @@ def get_best_font_size_tate(
             right = mid - 1
     return best
 
+from io import BytesIO
+
 @require_http_methods(["GET", "POST"])
 @login_required
 @csrf_exempt
@@ -805,13 +848,33 @@ def print_preview(request):
         response['X-Robots-Tag'] = 'noindex, nofollow'
         return response
     elif request.method == 'POST':
-        import math
         try:
             reqdata = json.loads(request.body.decode())
             qr_json = reqdata.get("qr_json", "")
             qrdata = json.loads(qr_json)
+            order_no = qrdata.get("order_no")
         except Exception as e:
             return JsonResponse({"error": "Invalid QR content or format."})
+
+        # Orderデータをorder_no(=UUID)で検索
+        try:
+            order = Order.objects.get(id=order_no)  # もしくはorder_no=order_no等、該当モデルフィールドで
+        except Order.DoesNotExist:
+            return JsonResponse({"error": "Order data not found for the given QR code."})
+
+        # 各値をorderから振り分けてqrdataへ
+        qrdata = {
+            "order_no": order_no,
+            "kanji": order.kanji,
+            "reading": order.reading,
+            "meaning": order.meaning,
+            "mode": order.mode,
+            "font": order.font,
+            "size": order.size,
+            "body_color": order.body_color,
+            "text_color": order.text_color,
+            # partsや他フィールドも必要なら追加
+        }
 
         # DB保存
         job, created = PrintJob.objects.update_or_create(
@@ -838,49 +901,68 @@ def print_preview(request):
         if mode == "tate":
             width, height = 2480, 3508  # 縦A4
             vertical = True
-            kanji_render = "".join("｜" if ch in ["ー", "ｰ", "-"] else ch for ch in kanji)
             best_font_size = get_best_font_size_tate(
-                kanji, font_path, width, height, margin=120
+                kanji, font_path, width, height, margin=100
             )
             font = ImageFont.truetype(font_path, best_font_size)
             img = Image.new("RGB", (width, height), "white")
             draw = ImageDraw.Draw(img)
-            heights, widths, extra_spc, is_small = [], [], [], []
-            for ch in kanji_render:
+            heights, widths, extra_spc, is_small, bboxes = [], [], [], [], []
+            for ch in kanji:
                 try:
                     bbox = draw.textbbox((0, 0), ch, font=font)
                 except AttributeError:
                     bbox = (0, 0) + draw.textsize(ch, font=font)
                 w = bbox[2] - bbox[0]
                 h = bbox[3] - bbox[1]
-                widths.append(w)
-                heights.append(h)
+                # 長音符は回転するためw,hを逆に記録
+                if ch in ['ー', 'ｰ', '-']:
+                    widths.append(h)
+                    heights.append(w)
+                else:
+                    widths.append(w)
+                    heights.append(h)
                 extra_spc.append(math.ceil(h*0.2))
                 is_small.append(ch in SMALL_KANA)
+                bboxes.append(bbox)
             total_h = sum(h + sp for h,sp in zip(heights, extra_spc))
 
             # ====== 【ここ】上下マージンを十分設けて中央寄せ ======
             MARGIN_TOP = 0
-            MARGIN_BOTTOM = 300  # 終端見切れ防止で多め
+            MARGIN_BOTTOM = 100  # 終端見切れ防止で多め
             usable_height = height - MARGIN_TOP - MARGIN_BOTTOM
             if total_h > usable_height:
-                # もしあふれる場合は文字サイズ調整ロジックも検討
-                start_y = MARGIN_TOP  # 最低限頭切れないように
+                start_y = MARGIN_TOP
             else:
-                # ★ 中央よりちょっと上にする倍率（0.2～0.4あたりがよい体感）★
                 start_y = MARGIN_TOP + int((usable_height - total_h) * 0.2)
 
-            for i, ch in enumerate(kanji_render):
-                w, h, sp = widths[i], heights[i], extra_spc[i]
-                if is_small[i]:
+            cursor_y = start_y
+            for i, ch in enumerate(kanji):
+                w, h, sp, bbox = widths[i], heights[i], extra_spc[i], bboxes[i]
+                if ch in ['ー', 'ｰ', '-']:
+                    # 長音符は90度回転
+                    base_w, base_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    char_img = Image.new('RGBA', (base_w, base_h), (0, 0, 0, 0))
+                    char_draw = ImageDraw.Draw(char_img)
+                    char_draw.text((-bbox[0], -bbox[1]), ch, font=font, fill=text_color)
+                    rotated_char_img = char_img.rotate(90, expand=True)
+                    rw, rh = rotated_char_img.size
+                    # 中央に配置（adjust_ratio微調整可）
+                    adjust_ratio = 1.85
+                    sx = int((width - rw) / adjust_ratio)
+                    sy = cursor_y + int(rh * 0.3)
+                    img.paste(rotated_char_img, (sx, sy), rotated_char_img)
+                elif is_small[i]:
                     sx = (width - w) // 2 + int(w * 0.2)
-                    sy = start_y - int(h * 0.4)
+                    sy = cursor_y - int(h * 0.4)
+                    draw.text((sx, sy), ch, font=font, fill=text_color)
                 else:
                     sx = (width - w) // 2
-                    sy = start_y
-                draw.text((sx, sy), ch, font=font, fill=text_color)
-                start_y += h + sp
-            # --- 注文情報（90度回転）...ここは同じ ---
+                    sy = cursor_y
+                    draw.text((sx, sy), ch, font=font, fill=text_color)
+                cursor_y += h + sp
+
+            # --- 注文情報（90度回転）---
             info_font = ImageFont.truetype(font_path, 64)
             info_lines = [
                 f"Order No: {qrdata.get('order_no','')}",
@@ -915,7 +997,7 @@ def print_preview(request):
             y = (height - text_height) * 0.3
             draw.text((x, y), kanji, font=font, fill=text_color)
 
-            # 下部注文情報（ここからはそのまま）
+            # 下部注文情報
             info_font = ImageFont.truetype(font_path, 64)
             info_lines = [
                 f"Order No: {qrdata.get('order_no','')}",
@@ -927,7 +1009,7 @@ def print_preview(request):
             for line in info_lines:
                 draw.text((160, y_info), line, font=info_font, fill="gray")
                 y_info += 70
-                
+
         buf = BytesIO()
         img.save(buf, format='PNG')
         preview_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')

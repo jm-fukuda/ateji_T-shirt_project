@@ -30,9 +30,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-zd2up=na*3qwt9f8z)6rv-7y-exxp05nun5-99j%98c4$txqx6'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', False)
 
-ALLOWED_HOSTS = ['jmwebservice.pythonanywhere.com']
+ALLOWED_HOSTS = [os.environ.get('ALLOWED_HOSTS', '')]
 
 # Application definition
 
@@ -116,24 +116,24 @@ LANGUAGE_CODE = 'en'
 LANGUAGES = [
     ('en', 'English'),
     ('ja','Japanese'),
-    ('zh-hans', '简体中文'),        # 中国語（簡体）
-    ('sv', 'Svenska'),            # スウェーデン語
-    ('zh-hant', '繁體中文'),       # 中国語（繁体）
-    ('ru', 'Русский'),            # ロシア語
-    ('fr', 'Français'),           # フランス語
-    ('es', 'Español'),            # スペイン語
-    ('de', 'Deutsch'),            # ドイツ語
-    ('ko', '한국어'),              # 韓国語
-    ('it', 'Italiano'),           # イタリア語
-    ('th', 'ไทย'),                # タイ語
-    ('nl', 'Nederlands'),         # オランダ語
+    #('zh-hans', '简体中文'),        # 中国語（簡体）
+    #('sv', 'Svenska'),            # スウェーデン語
+    #('zh-hant', '繁體中文'),       # 中国語（繁体）
+    #('ru', 'Русский'),            # ロシア語
+    #('fr', 'Français'),           # フランス語
+    #('es', 'Español'),            # スペイン語
+    #('de', 'Deutsch'),            # ドイツ語
+    #('ko', '한국어'),              # 韓国語
+    #('it', 'Italiano'),           # イタリア語
+    #('th', 'ไทย'),                # タイ語
+    #('nl', 'Nederlands'),         # オランダ語
 ]
 
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
 ]
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tokyo'
 
 USE_I18N = True
 

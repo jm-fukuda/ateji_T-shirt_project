@@ -12,14 +12,16 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<div class="container py-5">
-    <div class="text-center mb-4">
-        <img src="{% static 'images/shop_logo.png' %}" style="max-width:100px;">
-        <h1 class="fw-bold mb-3">{% trans "Kanji Ateji Generator" %}</h1>
+<div class="container text-center mt-5">
+    <div class="col-12  my-5">
+        <img src="{% static 'images/shop_logo.png' %}" style="img-fluid">
+    </div>
+    <div class="display-1 fw-bold my-5">{% trans "Kanji Ateji Generator" %}</div>
+    <div class="my-5">
         {# -- Language Switching -- #}
-        <div style="max-width:350px;margin:auto;">
+        <div style="max-width:900px;margin:auto;">
             <div class="input-group">
-                <select id="languageSelect" class="form-select">
+                <select id="languageSelect" class="form-select fs-2">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% get_available_languages as LANGUAGES %}
                     {% for code, name in LANGUAGES %}
@@ -28,12 +30,12 @@
                 </select>
             </div>
         </div>
-    </div>
-    <div class="text-center mt-4">
-        <a href="{% url 'ateji_form' %}?name={{ name|urlencode }}&num_candidates={{ num_candidates }}&mode={{ mode }}&font={{ font }}"
-            class="btn btn-primary btn-lg">
-            {% trans "Go to Ateji Convert" %}
-        </a>
+        <div class="text-center mt-4">
+            <a href="{% url 'ateji_form' %}?name={{ name|urlencode }}&num_candidates={{ num_candidates }}&mode={{ mode }}&font={{ font }}"
+                class="btn btn-primary w-100 fs-2">
+                {% trans "Go to Ateji Convert" %}
+            </a>
+        </div>
     </div>
 </div>
 <script>

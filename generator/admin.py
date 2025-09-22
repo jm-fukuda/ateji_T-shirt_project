@@ -2,8 +2,13 @@
 
 from . import translation  # ← これが必須で一番最初！
 from django.contrib import admin
-from .models import KanjiAteji,KanjiMeaning, Order, TshirtSetting, PrintJob, BadWord
+from .models import PronounceName, KanjiAteji,KanjiMeaning, Order, TshirtSetting, PrintJob, BadWord
 from modeltranslation.admin import TranslationAdmin
+
+@admin.register(PronounceName)
+class PronounceNameAdmin(TranslationAdmin):
+    list_display = ("name", "created_at")
+    search_fields = ("name",)
 
 @admin.register(KanjiAteji)
 class KanjiAtejiAdmin(admin.ModelAdmin):

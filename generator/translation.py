@@ -1,7 +1,12 @@
 # generator/translation.py
 
 from modeltranslation.translator import translator, TranslationOptions
-from .models import KanjiMeaning, Order, TshirtSetting, PrintJob
+from .models import PronounceName, KanjiMeaning, Order, TshirtSetting, PrintJob
+
+class PronounceNameTranslationOptions(TranslationOptions):
+    fields = (
+        'reading',
+    )
 
 class KanjiMeaningTranslationOptions(TranslationOptions):
     fields = (
@@ -38,6 +43,7 @@ class PrintJobTranslationOptions(TranslationOptions):
         # order_no などID系は多言語不要
     )
 
+translator.register(PronounceName, PronounceNameTranslationOptions)
 translator.register(KanjiMeaning, KanjiMeaningTranslationOptions)
 translator.register(Order, OrderTranslationOptions)
 translator.register(TshirtSetting, TshirtSettingTranslationOptions)
