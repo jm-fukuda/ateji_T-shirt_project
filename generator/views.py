@@ -22,7 +22,7 @@ from django.contrib.auth.decorators import login_required
 from kanji_name.settings import OPENAI_API_KEY
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
-from django.conf import settings
+from kanji_name import settings
 
 
 
@@ -481,7 +481,7 @@ def kanji_image(request):
     font_code = request.GET.get('font', 'ZenOldMincho')
     bg_path = os.path.join('static', 'images', 'fashion_tshirt1_white.png')
     font_file = FONT_CHOICES.get(font_code, FONT_CHOICES["ZenOldMincho"])
-    font_path = os.path.join('static', 'fonts', font_file)
+    font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', font_file)
 
     is_tate = mode == 'tate'
     chars = list(kanji)
